@@ -5210,7 +5210,7 @@ if(!window.__SLAM_V85_FINAL_RULES__){
  closeMatch=function(...args){
    const g=S?.game,wasPractice=!!g?.meta?.practice;
    const result=v85BaseCloseMatch.apply(this,args);
-   if(g&&!wasPractice&&g.done){S.game=null;try{persist();renderAll();const stage={local:'local',league:'league',national:'national',winterLocal:'winterLocal',winterFinal:'winterFinal',winterNational:'winterNational'}[S.phase];if(stage&&typeof setTournamentStage==='function')setTournamentStage(stage);showView('tournament');}catch(err){console.warn('V85 return to bracket recovery',err)}}
+   if(g&&!wasPractice&&g.done){S.game=null;try{persist();renderAll();const stage=v137StageFor(S.phase);if(stage&&typeof setTournamentStage==='function')setTournamentStage(stage);showView('tournament');}catch(err){console.warn('V85 return to bracket recovery',err)}}
    return result;
  };
  // Capture-phase delegation avoids stale handlers after a result screen / render cycle.
@@ -5315,10 +5315,7 @@ if(!window.__SLAM_V85_FINAL_RULES__){
     try{v88LegacyClose.apply(this,args)}catch(err){console.warn('V88 legacy close bookkeeping',err)}
     // Always clear the finished match before rendering the tournament again.
     if(S.game===g || S.game?.done)S.game=null;
-    const stage=({
-      local:'local', league:'league', national:'national',
-      winterLocal:'winterLocal', winterFinal:'winterFinal', winterNational:'winterNational'
-    })[phase] || 'national';
+    const stage=v137StageFor(phase) || 'national';
     try{persist()}catch(err){console.warn('V88 persist after match',err)}
     try{renderAll()}catch(err){console.warn('V88 render after match',err)}
     try{setTournamentStage(stage)}catch(err){console.warn('V88 stage restore',err)}
@@ -5501,7 +5498,7 @@ if(!window.__SLAM_V85_FINAL_RULES__){
       else if(S.phase==='done')toast(`${S.champion||S.school} 시즌을 마쳤어.`);
       if(S.game){openGameUI();showView('match');persist();return}
       persist();renderAll();
-      const stage=({local:'local',league:'league',national:'national',winterLocal:'winterLocal',winterFinal:'winterFinal',winterNational:'winterNational'})[S.phase];
+      const stage=v137StageFor(S.phase);
       if(stage)setTournamentStage(stage);
     }catch(err){console.error('V90 tournament progression',err);toast('다음 경기 진행 중 오류가 발생했어. 대진표 상태를 확인해줘.')}
   }
@@ -5522,7 +5519,7 @@ if(!window.__SLAM_V85_FINAL_RULES__){
     const winter=career&&Number(career.month)===10&&['winterLocal','winterFinal'].includes(phase);
     if(winter){try{v90PreviousClose.apply(this,args)}catch(err){console.warn('V90 winter close bookkeeping',err)}}
     if(S.game===g||S.game?.done)S.game=null;
-    try{persist();renderAll();const stage=({local:'local',league:'league',national:'national',winterLocal:'winterLocal',winterFinal:'winterFinal',winterNational:'winterNational'})[phase];if(stage)setTournamentStage(stage);showView('tournament')}catch(err){console.error('V90 return to bracket',err)}
+    try{persist();renderAll();const stage=v137StageFor(phase);if(stage)setTournamentStage(stage);showView('tournament')}catch(err){console.error('V90 return to bracket',err)}
     return true;
   };
 
@@ -5666,7 +5663,7 @@ if(!window.__SLAM_V85_FINAL_RULES__){
     e.preventDefault();e.stopImmediatePropagation();
     try{
       persist();renderAll();
-      const stage=({local:'local',league:'league',national:'national',winterLocal:'winterLocal',winterFinal:'winterFinal',winterNational:'winterNational'})[S.phase];
+      const stage=v137StageFor(S.phase);
       showView('tournament');if(stage&&typeof setTournamentStage==='function')setTournamentStage(stage);
     }catch(err){console.warn('return to bracket',err)}
   },true);
@@ -7372,7 +7369,7 @@ function v107Age(){
         if(!p)continue;
         if(!p.v107Init){const o={};for(const k of V10_KEYS)o[k]=Number(p[k])||0;p.v107Init=o}
         const grade=Math.max(1,Number(p.year)||2),isUser=team===S.school;
-        if(!isUser){
+        if(!isUser&&S.v137GrowY!==c.year){
           const rate=Math.max(.5,Math.min(2,Number(p.growthRate)||1.1)),G=1.7*rate*v107Curve(p);
           for(const k of V10_KEYS){const gg=(k==='three'&&v105IsBig(p))?G*.5:G;p[k]=Math.min(150,(Number(p[k])||0)+gg)}
         }
@@ -8189,13 +8186,13 @@ function v129Breakout(){
         else if(Math.random()<.01){
           const amt=Math.round((5+Math.random()*3)*10)/10;
           add(amt);p.v129Next=Math.round(amt/2*10)/10;p.v129Brk=(Number(p.v129Brk)||0)+1;
-          const line=`${p.name}(${team}) 급성장! OVR ${Math.round(avgStat(p))}`;
+          const line=`${p.name}(${team})의 잠재능력이 개화했다! OVR ${Math.round(avgStat(p))}`;
           if(team===S.school)mine.push(line);else if(avgStat(p)>=78)news.push(line);
         }
       }
     }
     const all=mine.concat(news);
-    if(all.length){c.history=c.history||[];c.history.push({year:c.year,month:12,type:'급성장',detail:all.join(', ')});setTimeout(()=>{try{toast('📈 '+all.slice(0,3).join(' · '))}catch(_){}},900)}
+    if(all.length){c.history=c.history||[];c.history.push({year:c.year,month:12,type:'잠재능력 개화',detail:all.join(', ')});setTimeout(()=>{try{v137GrowthModal(mine,news)}catch(_){try{toast('🌟 '+all.slice(0,3).join(' · '))}catch(__){}}},900)}
     persist();
   }catch(e){console.warn('v129 breakout',e)}
 }
@@ -8215,7 +8212,7 @@ function v130Run(){
       p.v130Done=1;
       persist();
     }else if(p.v130Tgt!=null&&window.__v130Runs===undefined)window.__v130Runs=0;
-    if(p.v130Tgt!=null&&(window.__v130Runs=(window.__v130Runs||0)+1)<=25){const c=get();if(c>p.v130Tgt+.6&&c<p.v130Tgt+6)adjust()}
+    if(p.v130Tgt!=null&&(window.__v130Runs=(window.__v130Runs||0)+1)<=25){const cc=v10Career(),fresh=cc.year===1&&cc.month<=2&&!Number(cc.week),init=p.v107Init,untouched=fresh||!init||V10_KEYS.every(k=>Math.abs((Number(p[k])||0)-(Number(init[k])||0))<.01);const c=get();if(untouched&&c>p.v130Tgt+.6&&c<p.v130Tgt+6)adjust()}
     const snap={};for(const k of V10_KEYS)snap[k]=Number(p[k])||0;if(p.v130Tgt!=null&&p.v107Init&&!p.v130Snap){p.v107Init=snap;p.v130Snap=1}
   }catch(e){console.warn('v130',e)}
 }
@@ -8358,7 +8355,7 @@ setInterval(v131Run,2500);
             if(mine&&!untouched){p.v132Done=1;continue}
             setOvr(p,tgt);p.v132Tgt=tgt;p.v131Tgt=tgt;p.v132Done=1;snap(p);changed=true;
           }else if(p.v132Tgt!=null&&runs<=40){
-            const cur=Number(avgStat(p))||0;
+            const cc0=p.condition;p.condition=100;let cur=0;try{cur=Number(avgStat(p))||0}finally{p.condition=cc0}
             if(cur<p.v132Tgt+twinAdj(p)-.6&&cur>p.v132Tgt+twinAdj(p)-6){setOvr(p,p.v132Tgt);p.v131Tgt=p.v132Tgt;snap(p);changed=true}
           }
         }
@@ -8371,6 +8368,7 @@ setInterval(v131Run,2500);
           const ok=()=>Object.entries(sh.set).every(([k,x])=>Math.abs((Number(p[k])||0)-x)<1.5);
           if(p.v134Done&&(runs>40||ok()))continue;
           if(p.v134Done&&Math.abs((Number(avgStat(p))||0)-sh.ovr)>6)continue;
+          if(p.v134Done){const c0=p.condition;p.condition=100;let cu=0;try{cu=Number(avgStat(p))||0}finally{p.condition=c0}if(cu>sh.ovr+.6)continue}
           const cond=p.condition;p.condition=100;
           try{
             setOvr(p,sh.ovr);
@@ -8581,6 +8579,134 @@ v14FoulChance=function(p,team,g){
     if(t?.closest?.('#saveNow')){e.preventDefault();e.stopImmediatePropagation();openUI('save')}
   },true);
 })();
+/* V137: 역배 '팀워크 개화'(+3 OVR, 대회당 팀당 1회) · 파이널4/결승 복귀 · 중계 화면 맨 위로 */
+function v137StageFor(phase){
+  const base=({local:'local',league:'league',national:'national',winterLocal:'winterLocal',winterFinal:'winterFinal',winterNational:'winterNational'})[phase];
+  try{
+    if(phase==='national'&&S.national&&Number(S.national.round)>=4)return 'nationalFinal4';
+    if(phase==='winterNational'&&S.winterNational&&Number(S.winterNational.round)>=3)return 'winterFinal4';
+  }catch(_){}
+  return base;
+}
+(function(){
+  const TOURN=new Set(['local','league','national','winterLocal','winterFinal','winterNational']);
+  const GAP=5,BONUS=3;
+  function tkey(){let y=0;try{y=v10Career().year||0}catch(_){}return S.phase+':'+y}
+  function bonus(t){try{const o=S&&S.v137;return o&&o.key===tkey()&&o.t&&o.t[t]?BONUS:0}catch(_){return 0}}
+  let depth=0;
+  const baseO=v8LineupOVR,baseT=teamRating;
+  v8LineupOVR=function(t){depth++;try{return baseO.apply(this,arguments)+bonus(t)}finally{depth--}};
+  teamRating=function(t){const r=baseT.apply(this,arguments);return depth>0?r:r+bonus(t)};
+  const hb=s=>{const c=String(s).trim().slice(-1).charCodeAt(0);return c>=0xAC00&&c<=0xD7A3&&((c-0xAC00)%28)!==0};
+  const ga=s=>s+(hb(s)?'이':'가'),eul=s=>s+(hb(s)?'을':'를');
+  let queue=[],timer=null;
+  function showPopup(){
+    timer=null;const items=queue;queue=[];if(!items.length)return;
+    items.sort((x,y)=>(y.mine?1:0)-(x.mine?1:0)||y.gap-x.gap);
+    let d=document.getElementById('v137Pop');if(d)d.remove();
+    d=document.createElement('div');d.id='v137Pop';
+    d.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px';
+    const one=items[0];
+    let body;
+    if(items.length===1)body=`<p style="margin:0 0 8px;line-height:1.6"><b>${ga(one.w)} 강팀 ${eul(one.l)} 상대로 이겨 팀워크가 개화했다!</b></p><p style="margin:0 0 14px;color:#f3c25a">이번 대회 동안 팀 OVR +${BONUS}</p>`;
+    else body='<div style="text-align:left;margin:0 0 10px;line-height:1.55">'+items.slice(0,4).map(i=>`<div>🔥 <b>${i.w}</b> ← 강팀 ${i.l} 격파${i.mine?' (우리 팀!)':''}</div>`).join('')+(items.length>4?`<div style="opacity:.7">외 ${items.length-4}팀</div>`:'')+`</div><p style="margin:0 0 14px;color:#f3c25a">팀워크가 개화했다! 이번 대회 동안 팀 OVR +${BONUS}</p>`;
+    d.innerHTML=`<div style="background:linear-gradient(160deg,#1d1a12,#16181d);color:#fff;border:1px solid #f3c25a;border-radius:16px;max-width:400px;width:100%;padding:20px;text-align:center;box-shadow:0 0 28px rgba(243,194,90,.35)"><div style="font-size:34px">🌸🔥</div><div style="color:#f3c25a;font-size:12px;letter-spacing:.12em;margin:4px 0 8px">TEAMWORK BLOOM · 역배</div><h3 style="margin:0 0 10px">팀워크 개화!</h3>${body}<button type="button" class="btn gold" id="v137Ok">확인</button></div>`;
+    document.body.appendChild(d);d.querySelector('#v137Ok').onclick=()=>d.remove();d.onclick=e=>{if(e.target===d)d.remove()};
+  }
+  function push(it){queue.push(it);if(timer)clearTimeout(timer);timer=setTimeout(()=>{if(document.getElementById('v129Heal')){timer=setTimeout(showPopup,1500)}else showPopup()},350)}
+  function onResult(g,sa,sb){
+    try{
+      if(!g||g.v137Done||!g.a||!g.b||!TOURN.has(S?.phase))return;
+      sa=Number(sa);sb=Number(sb);if(!isFinite(sa)||!isFinite(sb)||sa===sb)return;
+      g.v137Done=1;
+      const w=sa>sb?g.a:g.b,l=w===g.a?g.b:g.a;
+      const key=tkey();if(!S.v137||S.v137.key!==key)S.v137={key,t:{},log:[]};
+      if(S.v137.t[w])return;
+      const gap=(Number(v8LineupOVR(l))||0)-(Number(v8LineupOVR(w))||0);
+      if(gap<GAP)return;
+      S.v137.t[w]={vs:l,gap:Math.round(gap*10)/10};S.v137.log.push({team:w,vs:l,gap:Math.round(gap*10)/10});
+      push({w,l,gap,mine:w===S.school});
+      try{persist()}catch(_){}
+    }catch(e){console.warn('v137 upset',e)}
+  }
+  const baseSR=setResult;
+  setResult=function(g,...rest){const r=baseSR.apply(this,[g,...rest]);onResult(g,rest[0],rest[1]);return r};
+  /* 대진표 상단 표시 */
+  function banner(){
+    try{
+      const host=document.getElementById('tourneyView');if(!host)return;
+      let b=document.getElementById('v137Banner');
+      const o=S&&S.v137,teams=o&&o.key===tkey()?Object.keys(o.t||{}):[];
+      if(!teams.length){if(b)b.remove();return}
+      if(!b){b=document.createElement('div');b.id='v137Banner';b.style.cssText='margin:0 0 10px;padding:9px 12px;border:1px solid #f3c25a;border-radius:12px;background:rgba(243,194,90,.09);font-size:13px;line-height:1.5';host.prepend(b)}
+      b.innerHTML='🌸🔥 <b>팀워크 개화</b> (이번 대회 OVR +'+BONUS+') · '+teams.map(t=>`<span style="white-space:nowrap">${t}<span style="opacity:.65"> ← ${o.t[t].vs} 격파</span></span>`).join(' · ');
+    }catch(_){}
+  }
+  const baseRT=renderTourney;renderTourney=function(...a){const r=baseRT.apply(this,a);banner();return r};
+  /* 중계 화면은 항상 맨 위에서 시작 */
+  let lastTouch=0;
+  for(const ev of ['touchstart','wheel','pointerdown','keydown'])window.addEventListener(ev,()=>{lastTouch=Date.now()},{capture:true,passive:true});
+  const baseSV=showView;
+  showView=function(v,...a){
+    const r=baseSV.apply(this,[v,...a]);
+    try{
+      if(v==='match'){
+        const t0=Date.now(),top=()=>{try{window.scrollTo(0,0);document.scrollingElement&&(document.scrollingElement.scrollTop=0)}catch(_){}};
+        top();
+        for(const ms of [60,250,700])setTimeout(()=>{if(currentView==='match'&&lastTouch<t0)top()},ms);
+      }
+    }catch(_){}
+    return r;
+  };
+})();
+
+/* V137: AI 팀 선수 성장은 12월 U19 대표팀 감독 제안에서 맡는다/맡지 않는다를 고르는 순간 적용. 연말 v107Age는 이미 적용된 해는 건너뜀 */
+function v137AiGrowth(){
+  try{
+    const c=v10Career();if(!S||!S.teams||S.v137GrowY===c.year)return;
+    const rows=[];
+    for(const [team,roster] of Object.entries(S.teams)){
+      if(team===S.school)continue;
+      for(const p of roster||[]){
+        if(!p||typeof p!=='object')continue;
+        if(!p.v107Init){const o={};for(const k of V10_KEYS)o[k]=Number(p[k])||0;p.v107Init=o}
+        const cond=p.condition;p.condition=100;let b0=0;try{b0=Number(avgStat(p))||0}finally{p.condition=cond}
+        const rate=Math.max(.5,Math.min(2,Number(p.growthRate)||1.1)),G=1.7*rate*v107Curve(p);
+        for(const k of V10_KEYS){const gg=(k==='three'&&v105IsBig(p))?G*.5:G;p[k]=Math.min(150,(Number(p[k])||0)+gg)}
+        p.condition=100;let b1=0;try{b1=Number(avgStat(p))||0}finally{p.condition=cond}
+        rows.push({team,name:p.name,b0,b1});
+      }
+    }
+    S.v137GrowY=c.year;
+    try{persist()}catch(_){}
+    rows.sort((x,y)=>y.b1-x.b1);
+    setTimeout(()=>{try{v137InfoModal('📈','한 해의 결실','전국 고교팀 선수들이 한 해의 결실로 능력치가 성장했어.',rows.slice(0,6).map(r=>`${r.team} ${r.name} OVR ${Math.round(r.b0)} → ${Math.round(r.b1)}`),'주목할 선수')}catch(_){try{toast('전국 고교팀 선수들이 한 해의 결실로 능력치가 성장했어.')}catch(__){}}},500);
+  }catch(e){console.warn('v137 ai growth',e)}
+}
+function v137InfoModal(icon,title,msg,lines,head){
+  const old=document.getElementById('v137Info');if(old)old.remove();
+  const d=document.createElement('div');d.id='v137Info';
+  d.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px';
+  const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  d.innerHTML=`<div style="background:#16181d;color:#fff;border:1px solid #80c6f2;border-radius:16px;max-width:400px;width:100%;max-height:85vh;overflow:auto;padding:20px;text-align:center"><div style="font-size:30px">${icon}</div><h3 style="margin:6px 0 8px">${esc(title)}</h3><p style="margin:0 0 10px;line-height:1.5">${esc(msg)}</p>${lines&&lines.length?`<div style="text-align:left;line-height:1.6;margin:0 0 14px"><div style="opacity:.7;font-size:12px;margin-bottom:2px">${esc(head||'')}</div>${lines.map(l=>`<div>· ${esc(l)}</div>`).join('')}</div>`:''}<button type="button" class="btn gold" id="v137InfoOk">확인</button></div>`;
+  document.body.appendChild(d);d.querySelector('#v137InfoOk').onclick=()=>d.remove();
+}
+/* U19 대표팀 '맡는다/맡지 않는다'를 고르는 순간(선수 선발 전)에 AI 성장 적용 */
+document.addEventListener('click',function(e){
+  try{if(e.target&&e.target.closest&&e.target.closest('#v10AcceptWC,#v10DeclineWC'))v137AiGrowth()}catch(_){}
+},true);
+
+/* V137: 잠재능력 개화(급성장) 알림은 확인 버튼을 눌러야 닫힌다 */
+function v137GrowthModal(mine,news){
+  const lines=(mine||[]).map(x=>({t:x,m:1})).concat((news||[]).map(x=>({t:x,m:0})));
+  if(!lines.length)return;
+  const old=document.getElementById('v137Grow');if(old)old.remove();
+  const d=document.createElement('div');d.id='v137Grow';
+  d.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px';
+  const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  d.innerHTML='<div style="background:#16181d;color:#fff;border:1px solid #66d3a0;border-radius:16px;max-width:400px;width:100%;max-height:85vh;overflow:auto;padding:20px;text-align:center"><div style="font-size:30px">🌟</div><div style="color:#66d3a0;font-size:12px;letter-spacing:.12em;margin:4px 0 8px">POTENTIAL BLOOM</div><h3 style="margin:0 0 6px">잠재능력 개화!</h3><p style="margin:0 0 12px;opacity:.8;font-size:13px">한 해의 노력 끝에 숨어 있던 재능이 눈을 떴어.</p><div style="text-align:left;line-height:1.6;margin:0 0 14px">'+lines.map(l=>`<div>${l.m?'⭐ ':'· '}${esc(l.t)}${l.m?' <span style="color:#66d3a0">(우리 팀)</span>':''}</div>`).join('')+'</div><button type="button" class="btn gold" id="v137GrowOk">확인</button></div>';
+  document.body.appendChild(d);d.querySelector('#v137GrowOk').onclick=()=>d.remove();
+}
 /* V128: 12월 U19 월드컵 단계에서 저장을 불러오면 대표팀 화면으로 갈 길이 없던 문제 — 전용 탭과 '대회 다음 경기' 연결 */
 function v128Sync(){
   try{
