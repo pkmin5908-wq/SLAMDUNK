@@ -148,7 +148,7 @@ function phaseName(){return S.phase==='pre'?`프리시즌 ${S.week}/10주차`:S.
 function renderDashboard(){if(!S.school)return;$('phaseLabel').textContent=phaseName();$('chem').textContent=S.chem;$('chemBar').style.width=S.chem+'%';$('schedule').innerHTML=Array.from({length:10},(_,i)=>`<div class="week ${S.phase==='pre'&&i+1===S.week?'now':i+1<S.week||S.phase!=='pre'?'done':''}">WEEK ${i+1}<br>${i+1<S.week||S.phase!=='pre'?'완료':i+1===S.week&&S.phase==='pre'?'진행 중':'예정'}</div>`).join('');let msg=S.phase==='pre'?`이번 주 ${S.trained?'훈련을 마쳤어. 연습경기를 치르자.':'훈련을 선택하고 팀을 준비하자.'}`:S.phase==='local'?`가나가와현 예선 진행 중. 네 학교가 속한 블록에서 우승하면 4팀 최종예선에 올라가.`:S.phase==='league'?`4팀이 서로 한 번씩 붙는 최종예선 풀리그. 상위 2팀이 전국대회에 진출해.`:S.phase==='national'?`인터하이 전국대회를 진행하고 있어. 네 팀이 탈락했어도 끝까지 관전할 수 있어.`:`전국대회 우승: ${S.champion||'결과 대기'}`;$('story').textContent=msg;$('summary').innerHTML=`<b>${phaseName()}</b><br>조직력 ${S.chem}/100 · 내 학교 ${S.school}`; $('history').innerHTML=S.history.slice(-8).reverse().map(h=>`<div class="historyline"><span>${escapeHtml(h.label)}</span><b>${escapeHtml(h.score)}</b></div>`).join('')||'아직 경기 기록이 없습니다.';let acts=$('dashboardActions');acts.innerHTML='';if(S.phase==='pre'){let b=document.createElement('button');b.className='btn gold';b.textContent=S.trained?'연습경기 보기':'이번 주 훈련하기';b.onclick=()=>showView(S.trained?'match':'training');acts.append(b)}else if(['local','league','national'].includes(S.phase)){let b=document.createElement('button');b.className='btn gold';b.textContent='대진표에서 다음 경기';b.onclick=()=>showView('tournament');acts.append(b)}}
 function renderTraining(){if(!S.school)return;$('trainingTitle').textContent=`${S.phase==='pre'?`인터하이 전 훈련 ${S.week}/12주차`:S.phase==='preWinter'?`겨울선발전 전 훈련 · ${v10Career().month}월 ${S.week}/4주차`:'현재는 훈련 기간이 아니야'}`;$('trainingChoices').innerHTML='';let kinds=[['2점슛','shoot','미들·점프슛 능력 향상'],['3점슛','three','외곽슛 능력 향상'],['수비','def','수비 대응 향상'],['점프력','reb','점프·리바운드·블락 향상'],['스피드','spd','속공과 체력 유지'],['피지컬','physical','몸의 균형과 골밑 경합 향상'],['개인기','skill','드리블·페이크·1대1 돌파 능력 향상'],['전술·조직력','pass','패스 전개와 조직력'],['완전 휴식','rest','선수단 컨디션 전원 100 회복']];kinds.forEach(([name,key,desc])=>{let b=document.createElement('button');b.className='trainbtn';b.innerHTML=`<b>${name}</b><span class="tiny">${desc}</span>`;b.disabled=!['pre','preWinter'].includes(S.phase)||S.trained;b.onclick=()=>train(key,name);$('trainingChoices').append(b)});$('trainingLog').textContent=S.trained?'훈련 완료! 연습경기를 시작할 수 있어.':S.phase==='pre'?'이번 주 훈련을 선택해.':'프리시즌이 끝났어. 대회에 집중하자.';$('trainingAction').innerHTML='';if(S.trained){let b=document.createElement('button');b.className='btn gold';b.textContent='이번 주 연습경기 시작';b.onclick=()=>beginPractice();$('trainingAction').append(b)}}
 function train(key,label){if(S.phase!=='pre'||S.trained)return;let rr=ensureTeam(S.school);rr.forEach((p,i)=>{p[key]=Math.min(150,(p[key]||50)+(i<5?2:1));p.condition=Math.min(100,(p.condition||90)+2)});S.chem=Math.min(100,S.chem+(key==='pass'?7:2));S.trained=true;$('trainingLog').innerHTML=`<b>${label} 훈련 완료!</b><br>선수단 능력과 컨디션이 올랐어. 연습경기로 실전을 준비하자.`;persist();renderAll()}
-function renderPlayers(){if(!S.school)return;let rr=ensureTeam(S.school),court=activePlayers(S.school);$('onCourtCount').textContent=`코트 ${court.length}/5`;let target=rr.find(p=>p.name===subOut);$('playerGrid').innerHTML=rr.map((p,i)=>{let on=court.includes(p),bench=i>=5&&!starters[S.school]?.includes(p.name);let cond=p.condition??88;return `<article class="player">${avatar(p)}<div><div class="playerline"><span class="pname">${escapeHtml(p.name)}</span><span class="badge ${on?'':'bench'}">${on?'코트 중':bench?'후보':'주전'}</span></div><div class="tiny">${p.year||1}학년 · ${escapeHtml(p.pos||'F')} · ${p.ht||180}cm</div><div class="cond"><i style="width:${Math.max(0,Math.min(100,cond))}%;background:${cond<40?'var(--red)':cond<65?'var(--gold)':'var(--green)'}"></i></div><div class="tiny">컨디션 ${cond}</div><div class="stats">${[['2점슛',p.shoot],['3점슛',p.three],['점프',p.reb],['패스',p.pass],['수비',p.def],['스피드',p.spd],['피지컬',p.physical],['개인기',p.skill]].map(x=>`<div class="stat">${x[0]}<b>${x[1]}</b></div>`).join('')}</div><div class="row" style="margin-top:7px"><button class="btn small gold" data-player-detail="${escapeHtml(p.name)}">상세보기</button><button class="btn small ghost" data-court="${escapeHtml(p.name)}">${on?'교체할 선수 선택':'코트 투입'}</button><label class="btn small ghost" style="display:inline-flex;align-items:center" for="photo-${i}">사진<input class="hidden" id="photo-${i}" type="file" accept="image/*" capture="environment" data-onephoto="${i}"></label></div></div></article>`}).join('');document.querySelectorAll('[data-player-detail]').forEach(b=>b.onclick=()=>openPlayerDetail(b.dataset.playerDetail));document.querySelectorAll('[data-court]').forEach(b=>b.onclick=()=>toggleCourt(b.dataset.court));document.querySelectorAll('[data-onephoto]').forEach(inp=>inp.onchange=e=>loadOnePhoto(e,+inp.dataset.onephoto));if(subOut){$('playerGrid').insertAdjacentHTML('beforebegin',`<div class="notice" style="margin:8px 0">${escapeHtml(subOut)}와 교체할 선수를 선택해. 코트 중인 선수 버튼을 눌러 확정할 수 있어. <button class="btn small ghost" id="cancelSwap">취소</button></div>`);$('cancelSwap').onclick=()=>{subOut=null;renderPlayers()}}}
+function renderPlayers(){if(!S.school)return;let rr=ensureTeam(S.school),court=activePlayers(S.school);$('onCourtCount').textContent=`코트 ${court.length}/5`;let target=rr.find(p=>p.name===subOut);$('playerGrid').innerHTML=rr.map((p,i)=>{let on=court.includes(p),bench=i>=5&&!starters[S.school]?.includes(p.name);let cond=p.condition??88;return `<article class="player">${avatar(p)}<div><div class="playerline"><span class="pname">${escapeHtml(p.name)}</span><span class="badge ${on?'':'bench'}">${on?'코트 중':bench?'후보':'주전'}</span></div><div class="tiny">${p.year||1}학년 · ${escapeHtml(p.pos||'F')} · ${p.ht||180}cm</div><div class="cond"><i style="width:${Math.max(0,Math.min(100,cond))}%;background:${cond<40?'var(--red)':cond<65?'var(--gold)':'var(--green)'}"></i></div><div class="tiny">컨디션 ${cond}</div><div class="stats">${[['2점슛',p.shoot],['3점슛',p.three],['리바',p.reb],['패스',p.pass],['수비',p.def],['스피드',p.spd],['피지컬',p.physical],['개인기',p.skill]].map(x=>`<div class="stat">${x[0]}<b>${x[1]}</b></div>`).join('')}</div><div class="row" style="margin-top:7px"><button class="btn small gold" data-player-detail="${escapeHtml(p.name)}">상세보기</button><button class="btn small ghost" data-court="${escapeHtml(p.name)}">${on?'교체할 선수 선택':'코트 투입'}</button><label class="btn small ghost" style="display:inline-flex;align-items:center" for="photo-${i}">사진<input class="hidden" id="photo-${i}" type="file" accept="image/*" capture="environment" data-onephoto="${i}"></label></div></div></article>`}).join('');document.querySelectorAll('[data-player-detail]').forEach(b=>b.onclick=()=>openPlayerDetail(b.dataset.playerDetail));document.querySelectorAll('[data-court]').forEach(b=>b.onclick=()=>toggleCourt(b.dataset.court));document.querySelectorAll('[data-onephoto]').forEach(inp=>inp.onchange=e=>loadOnePhoto(e,+inp.dataset.onephoto));if(subOut){$('playerGrid').insertAdjacentHTML('beforebegin',`<div class="notice" style="margin:8px 0">${escapeHtml(subOut)}와 교체할 선수를 선택해. 코트 중인 선수 버튼을 눌러 확정할 수 있어. <button class="btn small ghost" id="cancelSwap">취소</button></div>`);$('cancelSwap').onclick=()=>{subOut=null;renderPlayers()}}}
 function toggleCourt(name){let rr=ensureTeam(S.school),court=activePlayers(S.school),p=rr.find(x=>x.name===name);if(!p)return;if(court.includes(p)){if(!subOut){toast('먼저 교체 투입할 후보 선수를 눌러줘.');return}let incoming=rr.find(x=>x.name===subOut);if(!incoming||court.includes(incoming)){subOut=null;return}S.active[S.school]=court.map(x=>x===p?incoming.name:x.name);p.condition=Math.min(100,(p.condition||75)+2);incoming.condition=Math.min(100,(incoming.condition||75)+2);subOut=null;toast(`${p.name} ↔ ${incoming.name} 교체!`);persist()}else{subOut=name;toast(`${p.name} 투입 대기. 코트 중인 선수를 눌러 교체를 확정해줘.`)}renderPlayers();renderDashboard()}
 function loadOnePhoto(e,i){let file=e.target.files?.[0];if(!file)return;resizePhoto(file).then(src=>{ensureTeam(S.school)[i].photo=src;persist();renderPlayers();toast('선수 사진을 저장했어.')}).catch(()=>toast('사진을 읽지 못했어. 다른 이미지로 다시 시도해줘.'))}
 function resizePhoto(file){return new Promise((resolve,reject)=>{let im=new Image(),url=URL.createObjectURL(file);im.onload=()=>{let c=document.createElement('canvas');c.width=128;c.height=160;let sc=Math.max(128/im.width,160/im.height),w=128/sc,h=160/sc;c.getContext('2d').drawImage(im,(im.width-w)/2,(im.height-h)/2,w,h,0,0,128,160);URL.revokeObjectURL(url);resolve(c.toDataURL('image/webp',.78))};im.onerror=reject;im.src=url})}
@@ -241,7 +241,7 @@ function drawScout(){
 }
 function renderTraining(){if(!S.school)return;$('trainingTitle').textContent=`${S.phase==='pre'?`인터하이 전 훈련 ${S.week}/12주차`:S.phase==='preWinter'?`겨울선발전 전 훈련 · ${v10Career().month}월 ${S.week}/4주차`:'현재는 훈련 기간이 아니야'}`;$('trainingChoices').innerHTML='';let kinds=[['슛','shoot','슛 능력 향상'],['수비','def','수비 대응 향상'],['점프력','reb','점프·리바운드·블락 향상'],['체력·스피드','spd','속공과 체력 유지'],['전술·조직력','pass','패스와 조직력'],['완전 휴식','rest','선수단 컨디션 전원 100 회복']];kinds.forEach(([name,key,desc])=>{let b=document.createElement('button');b.className='trainbtn';b.innerHTML=`<b>${name}</b><span class="tiny">${desc}</span>`;b.disabled=!['pre','preWinter'].includes(S.phase)||S.trained;b.onclick=()=>train(key,name);$('trainingChoices').append(b)});$('trainingLog').textContent=S.trained?'완료! 연습경기를 시작할 수 있어.':S.phase==='pre'?'이번 주 훈련을 선택해.':'프리시즌 종료';$('trainingAction').innerHTML='';if(S.trained){let b=document.createElement('button');b.className='btn gold';b.textContent='이번 주 연습경기 시작';b.onclick=()=>beginPractice();$('trainingAction').append(b)}}
 function train(key,label){if(S.phase!=='pre'||S.trained)return;let rr=ensureTeam(S.school);if(key==='rest')rr.forEach(p=>p.condition=100);else rr.forEach((p,i)=>{p[key]=Math.min(105,(p[key]||50)+(i<5?2:1));p.condition=Math.min(100,(p.condition??90)+2)});S.chem=Math.min(100,S.chem+(key==='pass'?7:2));S.trained=true;$('trainingLog').innerHTML=key==='rest'?'<b>완전 휴식!</b><br>선수단 컨디션이 모두 100으로 회복됐어.':'훈련 완료! 선수단 능력과 컨디션이 올랐어.';persist();renderAll()}
-function renderPlayers(){if(!S.school)return;let rr=ensureTeam(S.school),court=activePlayers(S.school);$('onCourtCount').textContent=`코트 ${court.length}/5`;let target=rr.find(p=>p.name===subOut);$('playerGrid').innerHTML=rr.map((p,i)=>{let on=court.includes(p),bench=!on,cond=p.condition??88;return `<article class="player">${avatar(p)}<div><div class="playerline"><span class="pname">${escapeHtml(p.name)}</span><span class="badge ${on?'':'bench'}">${on?'코트 중':'벤치'}</span><span class="ovr">${Math.round(avgStat(p))}</span></div><div class="tiny">${p.year||1}학년 · ${escapeHtml(p.pos||'F')} · ${p.ht||180}cm</div><div class="cond"><i style="width:${cond}%;background:${cond<40?'var(--red)':cond<65?'var(--gold)':'var(--green)'}"></i></div><div class="tiny">컨디션 ${cond}</div><div class="stats">${[['슛',p.shoot],['점프',p.reb],['패스',p.pass],['수비',p.def],['스피드',p.spd]].map(x=>`<div class="stat">${x[0]}<b>${x[1]}</b></div>`).join('')}</div><div class="row" style="margin-top:7px"><button class="btn small ghost" data-swap="${i}">${on?'교체 OUT':'교체 IN'}</button><label class="btn small ghost" for="photo-${i}">사진<input class="hidden" id="photo-${i}" type="file" accept="image/*" capture="environment" data-onephoto="${i}"></label></div></div></article>`}).join('');document.querySelectorAll('[data-swap]').forEach(b=>b.onclick=()=>{let p=rr[Number(b.dataset.swap)],isOn=activePlayers(S.school).includes(p);if(isOn){swapTarget=p.name;toast(`${p.name}을(를) 빼고 투입할 후보를 선택해.`)}else if(swapTarget){S.active[S.school]=activePlayers(S.school).map(x=>x.name===swapTarget?p.name:x.name);swapTarget=null;persist();renderPlayers();renderDashboard();toast('교체 완료!')}else{toast('먼저 코트 중인 선수의 교체 OUT을 눌러줘.')}});document.querySelectorAll('[data-onephoto]').forEach(inp=>inp.onchange=e=>loadOnePhoto(e,+inp.dataset.onephoto));}
+function renderPlayers(){if(!S.school)return;let rr=ensureTeam(S.school),court=activePlayers(S.school);$('onCourtCount').textContent=`코트 ${court.length}/5`;let target=rr.find(p=>p.name===subOut);$('playerGrid').innerHTML=rr.map((p,i)=>{let on=court.includes(p),bench=!on,cond=p.condition??88;return `<article class="player">${avatar(p)}<div><div class="playerline"><span class="pname">${escapeHtml(p.name)}</span><span class="badge ${on?'':'bench'}">${on?'코트 중':'벤치'}</span><span class="ovr">${Math.round(avgStat(p))}</span></div><div class="tiny">${p.year||1}학년 · ${escapeHtml(p.pos||'F')} · ${p.ht||180}cm</div><div class="cond"><i style="width:${cond}%;background:${cond<40?'var(--red)':cond<65?'var(--gold)':'var(--green)'}"></i></div><div class="tiny">컨디션 ${cond}</div><div class="stats">${[['슛',p.shoot],['리바',p.reb],['패스',p.pass],['수비',p.def],['스피드',p.spd]].map(x=>`<div class="stat">${x[0]}<b>${x[1]}</b></div>`).join('')}</div><div class="row" style="margin-top:7px"><button class="btn small ghost" data-swap="${i}">${on?'교체 OUT':'교체 IN'}</button><label class="btn small ghost" for="photo-${i}">사진<input class="hidden" id="photo-${i}" type="file" accept="image/*" capture="environment" data-onephoto="${i}"></label></div></div></article>`}).join('');document.querySelectorAll('[data-swap]').forEach(b=>b.onclick=()=>{let p=rr[Number(b.dataset.swap)],isOn=activePlayers(S.school).includes(p);if(isOn){swapTarget=p.name;toast(`${p.name}을(를) 빼고 투입할 후보를 선택해.`)}else if(swapTarget){S.active[S.school]=activePlayers(S.school).map(x=>x.name===swapTarget?p.name:x.name);swapTarget=null;persist();renderPlayers();renderDashboard();toast('교체 완료!')}else{toast('먼저 코트 중인 선수의 교체 OUT을 눌러줘.')}});document.querySelectorAll('[data-onephoto]').forEach(inp=>inp.onchange=e=>loadOnePhoto(e,+inp.dataset.onephoto));}
 function buildNational(qualifiers){let schools=['산왕공고','지학고',...qualifiers,'풍전고','대영고','명정공고','상대고','지학고','대영고','문익고','서진고','상성고','유성고','포안고','정산고','마성','문상고','황서공업고','경안','부평고','부산고','제주고','오현고','서울공고','운봉공고','광주고','대구고','인천고','청주고','원주고','강릉고','전주고','목포고','마산고','울산고','창원고','수원고','성남고','안양고','평택고','천안고','충주고','포항고','경주고','김해고','진주고','여수고','순천고','군산고','익산고','강원고','제천고','동래고','경북고','경남고','대전고','광주일고','배재고','용산고','경복고','휘문고','중앙고','보성고','명지고','양정고','동성고','대신고','신일고','부산상고','대구상고','춘천고','원주고'];let used=new Set(),teams=schools.filter(t=>{if(used.has(t))return false;used.add(t);return true});let localSet=new Set(S.local?.blocks.flatMap(x=>x.teams)||[]);teams=teams.filter(t=>qualifiers.includes(t)||['산왕공고','지학고','풍전고','대영고','명정공고','상대고','지학고'].includes(t)||!localSet.has(t));let i=0;while(teams.length<60){let extra=['동해','백두','한라','금강','태백','청해','남해','서해'][i%8]+['고','공고','상고'][Math.floor(i/8)%3];i++;if(!teams.includes(extra)&&!localSet.has(extra))teams.push(extra)}teams=teams.slice(0,60);let seeds=['산왕공고','상대고',qualifiers[0],'명정공고'];teams=teams.filter(t=>!localSet.has(t)||seeds.includes(t));while(teams.length<60){let x=['수도고','남산고','동원고','서진고','해성고','청운고'][teams.length%6];teams.push(x+(teams.includes(x)?'A':''))}let rest=teams.filter(t=>!seeds.includes(t)).sort(()=>Math.random()-.5),games=[];for(let k=0;k<rest.length;k+=2)games.push(createLeagueMatch(rest[k],rest[k+1],'60강'));return {teams,seeds,games,round:0,results:[],champion:'',roundHistory:[],qualifiers:qualifiers.slice()}}
 function startNational(qualifiers){S.phase='national';S.national=buildNational(qualifiers);S.national.roundHistory=[];S.tourneyMessage=`가나가와 1·2위 ${qualifiers.join(' · ')} 진출. 시드 1 산왕 · 2 아이와학원 · 3 가나가와 1위 · 4 명정공고.`;persist();renderAll();currentTournamentStage='national';showView('tournament')}
 function nextNationalBaseV7(){let n=S.national;if(!n)return;let g=n.games.find(x=>!x.done);if(g){let semifinal=n.round===4,final=n.round===5;if(g.a===S.school||g.b===S.school||semifinal||final)showTourneyMatch(g,false,true);else{let r=quickResult(g.a,g.b);setResult(g,r.a,r.b);S.tourneyMessage=`전국 ${roundName(n.round)} · ${g.a} ${r.a}–${r.b} ${g.b} · ${g.winner} 진출`;persist();renderAll()}return}let games=n.games.slice(),winners=games.map(g=>g.winner);n.roundHistory=n.roundHistory||[];n.roundHistory.push({round:n.round,games:games.map(g=>({...g}))});if(n.round===0)winners=[...n.seeds,...winners];if(winners.length===1){n.champion=winners[0];S.champion=n.champion;S.phase='interhighDone';S.awards=S.awards||{};S.awards.national=awardHTML('national');S.tourneyMessage=`🏆 전국대회 우승! ${n.champion}`;persist();renderAll();showView('tournament');return}n.round++;n.games=pairs(winners);for(let x of n.games){x.round=roundName(n.round)}S.tourneyMessage=`전국대회 ${roundName(n.round)} 대진 확정`;persist();renderAll()}
@@ -318,7 +318,7 @@ function genPlays(team,pts,quarter,scoreA,scoreB){
 }
 function renderPlayers(){
  if(!S.school)return;const rr=ensureTeam(S.school),court=activePlayers(S.school);$('onCourtCount').textContent=`코트 ${court.length}/5`;
- $('playerGrid').innerHTML=rr.map((p,i)=>{const on=court.includes(p),cond=p.condition??88;return `<article class="player">${avatar(p)}<div><div class="playerline"><span class="pname">${escapeHtml(p.name)}</span><span class="badge ${on?'':'bench'}">${on?'코트 중':'벤치'}</span><span class="ovr">${Math.round(avgStat(p))}</span></div><div class="tiny">${p.number?`#${p.number} · `:''}${p.year||1}학년 · ${escapeHtml(p.pos||'F')} · ${p.ht||180}cm${p.wt?` · ${p.wt}kg`:''}</div><div class="cond"><i style="width:${cond}%;background:${cond<40?'var(--red)':cond<65?'var(--gold)':'var(--green)'}"></i></div><div class="tiny">컨디션 ${cond}</div><div class="stats">${[['2점슛',p.shoot],['3점슛',p.three],['점프',p.reb],['패스',p.pass],['수비',p.def],['스피드',p.spd]].map(x=>`<div class="stat">${x[0]}<b>${Math.round(x[1]||0)}</b></div>`).join('')}</div><label class="btn small ghost" for="photo-v7-${i}">사진<input class="hidden" id="photo-v7-${i}" type="file" accept="image/*" data-onephoto-v7="${i}"></label></div></article>`}).join('');document.querySelectorAll('[data-onephoto-v7]').forEach(inp=>inp.onchange=e=>loadOnePhoto(e,+inp.dataset.onephotoV7));
+ $('playerGrid').innerHTML=rr.map((p,i)=>{const on=court.includes(p),cond=p.condition??88;return `<article class="player">${avatar(p)}<div><div class="playerline"><span class="pname">${escapeHtml(p.name)}</span><span class="badge ${on?'':'bench'}">${on?'코트 중':'벤치'}</span><span class="ovr">${Math.round(avgStat(p))}</span></div><div class="tiny">${p.number?`#${p.number} · `:''}${p.year||1}학년 · ${escapeHtml(p.pos||'F')} · ${p.ht||180}cm${p.wt?` · ${p.wt}kg`:''}</div><div class="cond"><i style="width:${cond}%;background:${cond<40?'var(--red)':cond<65?'var(--gold)':'var(--green)'}"></i></div><div class="tiny">컨디션 ${cond}</div><div class="stats">${[['2점슛',p.shoot],['3점슛',p.three],['리바',p.reb],['패스',p.pass],['수비',p.def],['스피드',p.spd]].map(x=>`<div class="stat">${x[0]}<b>${Math.round(x[1]||0)}</b></div>`).join('')}</div><label class="btn small ghost" for="photo-v7-${i}">사진<input class="hidden" id="photo-v7-${i}" type="file" accept="image/*" data-onephoto-v7="${i}"></label></div></article>`}).join('');document.querySelectorAll('[data-onephoto-v7]').forEach(inp=>inp.onchange=e=>loadOnePhoto(e,+inp.dataset.onephotoV7));
 }
 function renderSubControls(){
  const host=$('matchSubstitutions');if(!host)return;if(!S.game||S.game.done||!S.game.userGame){host.innerHTML='';return}
@@ -3469,13 +3469,13 @@ try{
     const result=v49BaseTrain.apply(this,arguments);
     if(canTrain&&S.trained&&key!=='rest'){
       const rr=ensureTeam(S.school);rr.forEach(p=>{const old=before.find(x=>x.name===p.name);if(!old)return;const inc=p.name===focusName&&focused?Math.min(.4,.2*mult):.15;p[key]=Number(Math.min(150,old.value+inc).toFixed(3))});
-      const log=document.getElementById('trainingLog');if(log)log.innerHTML=`<b>${escapeHtml(label||key)} 훈련 완료!</b><br>선수별 +0.15, 집중 선수는 최대 +0.40 성장했어. 컨디션은 유지돼.`;
+      const log=document.getElementById('trainingLog');if(log)log.innerHTML=`<b>${escapeHtml(label||key)} 훈련 완료!</b><br>선수별로 선택 능력치가 약 +0.4 올랐어(성장형 선수는 최대 +1.0). 컨디션은 유지돼.`;
       persist();renderAll();
     }
     return result;
   };
   const v49BaseRenderTraining=renderTraining;
-  renderTraining=function(...args){const out=v49BaseRenderTraining.apply(this,args);for(const n of document.querySelectorAll('#trainingChoices .trainbtn .tiny'))if(!/컨디션 전원 100/.test(n.textContent))n.textContent='선수별 +0.15 · 집중 선수 최대 +0.40';return out};
+  renderTraining=function(...args){const out=v49BaseRenderTraining.apply(this,args);for(const n of document.querySelectorAll('#trainingChoices .trainbtn .tiny'))if(!/컨디션 전원 100/.test(n.textContent))n.textContent='선택 능력치 약 +0.4';return out};
   const v49BaseCloseMatch=closeMatch;
   closeMatch=function(...args){if(S.game?.done)v49RecordOfficialSeason(S.game);return v49BaseCloseMatch.apply(this,args)};
   const v49BaseStartNew=startNew;
@@ -3500,7 +3500,7 @@ if(!window.__SLAM_V492__){window.__SLAM_V492__=true;
       if(multiplier===2){const fp=roster.find(p=>p.name===focusName);if(!fp||Number(fp.growthRate||1)<1.5)multiplier=1.5;}
       roster.forEach(p=>{const old=Number(p[key])||50;const inc=p.name===focusName&&focused?(multiplier===2?0.40:0.30):V492_BASE_INCREMENT;p[key]=Number(Math.min(150,old+inc).toFixed(4));});
       S.chem=Math.min(100,(Number(S.chem)||50)+(key==='pass'?7:2));
-      $('trainingLog').innerHTML=`<b>${escapeHtml(label||key)} 훈련 완료!</b><br>일반 선수 +0.15 · 집중훈련 선수는 1.5배 +0.30 / 2배 +0.40.`;
+      $('trainingLog').innerHTML=`<b>${escapeHtml(label||key)} 훈련 완료!</b><br>선수별로 선택 능력치가 약 +0.4 올랐어(성장형 선수는 최대 +1.0).`;
     }
     S.trained=true;if(S.focusPlan)S.focusPlan.mode='training';persist();renderAll();
   };
@@ -3514,7 +3514,7 @@ if(!window.__SLAM_V492__){window.__SLAM_V492__=true;
     const targets=document.querySelectorAll('#trainingTitle,#phaseLabel,#story,#summary,#tourneyInfo,#v10Calendar .v10-calendar-head b,#v10Calendar .v10-calendar-head span,#awardContinue');
     for(const root of targets){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=walker.nextNode())){let v=n.nodeValue;v=v.replace(/\s*\d+\s*\/\s*12주차?/g,'').replace(/12주 동안/g,'월별 훈련 기간 동안').replace(/12주 훈련/g,'월별 훈련').replace(/12주 뒤/g,'월별 훈련 뒤').replace(/12주 후/g,'월별 훈련 후').replace(/겨울 12주/g,'겨울');if(v!==n.nodeValue)n.nodeValue=v;}}
     const story=document.getElementById('story');if(story&&S?.school){const c=v10Career();if(S.phase==='pre')story.textContent=`${v10MonthName(c.month)} · 인터하이 준비 훈련과 연습경기를 진행 중.`;else if(S.phase==='preWinter')story.textContent=`${v10MonthName(c.month)} · 겨울선발전 준비 훈련과 연습경기를 진행 중.`;}
-    const choices=document.getElementById('trainingChoices');if(choices){for(const btn of choices.querySelectorAll('.trainbtn')){const t=btn.querySelector('.tiny');if(t&&btn.dataset.v10Train!=='rest')t.textContent='선택 능력치 +0.15 · 집중훈련 +0.30 / +0.40';}let note=document.getElementById('v492-growth-note');if(!note){note=document.createElement('div');note.id='v492-growth-note';note.className='tiny';choices.insertAdjacentElement('afterend',note);}note.textContent='일반 훈련: 선택 능력치 +0.15 · 집중훈련: 지정 선수 1.5배 +0.30 또는 2배 +0.40 · AI 선수는 연간 약 +0.5 성장.';}
+    const choices=document.getElementById('trainingChoices');if(choices){for(const btn of choices.querySelectorAll('.trainbtn')){const t=btn.querySelector('.tiny');if(t&&btn.dataset.v10Train!=='rest')t.textContent='선택 능력치 약 +0.4';}let note=document.getElementById('v492-growth-note');if(!note){note=document.createElement('div');note.id='v492-growth-note';note.className='tiny';choices.insertAdjacentElement('afterend',note);}note.textContent='훈련 1회: 선택 능력치 약 +0.4 (성장형 선수 최대 +1.0, 학년·잠재력에 따라 달라져) · 다른 고교 선수들도 해마다 성장해.';}
   };
   const v492Style=document.createElement('style');v492Style.id='v492-hide-week-grid';v492Style.textContent='#schedule{display:none!important}';document.head.appendChild(v492Style);
   const v492BasePhaseName=phaseName;phaseName=function(...a){return String(v492BasePhaseName.apply(this,a)||'').replace(/\s*\d+\s*\/\s*12주차?/g,'');};
@@ -5132,13 +5132,13 @@ if(!window.__SLAM_V85_FINAL_RULES__){
    const result=v85BaseTrain.apply(this,arguments);
    if(allowed&&S.trained&&key!=='rest'&&before.length){
      for(const row of before){const inc=row.p===focus&&focusName?(multiplier===2?.40:.30):.15;row.p[key]=Number(Math.min(150,row.value+inc).toFixed(3));if(row.condition!==undefined)row.p.condition=row.condition;}
-     const log=document.getElementById('trainingLog');if(log)log.innerHTML=`<b>${escapeHtml(label||key)} 훈련 완료!</b><br>일반 선수 +0.15 · 집중 선수 1.5배 +0.30 / 2배 +0.40 · 컨디션 유지.`;
+     const log=document.getElementById('trainingLog');if(log)log.innerHTML=`<b>${escapeHtml(label||key)} 훈련 완료!</b><br>선수별로 선택 능력치가 약 +0.4 올랐어(성장형 선수는 최대 +1.0) · 컨디션 유지.`;
      persist();try{renderAll()}catch(_){}
    }
    return result;
  };
  const v85BaseRenderTraining=renderTraining;
- renderTraining=function(...args){const result=v85BaseRenderTraining.apply(this,args);for(const b of document.querySelectorAll('#trainingChoices .trainbtn')){const n=b.querySelector('.tiny');if(n&&b.dataset.v10Train!=='rest'&&!/전원 컨디션/.test(n.textContent))n.textContent='선택 능력치 +0.15 · 집중훈련 +0.30 / +0.40'}let note=document.getElementById('v85-growth-note');if(!note){note=document.createElement('div');note.id='v85-growth-note';note.className='tiny';document.getElementById('trainingChoices')?.insertAdjacentElement('afterend',note)}if(note)note.textContent='일반 선수 +0.15 · 집중 선수 1.5배 +0.30 / 2배 +0.40 · AI 선수 연간 약 +0.5';return result};
+ renderTraining=function(...args){const result=v85BaseRenderTraining.apply(this,args);for(const b of document.querySelectorAll('#trainingChoices .trainbtn')){const n=b.querySelector('.tiny');if(n&&b.dataset.v10Train!=='rest'&&!/전원 컨디션/.test(n.textContent))n.textContent='선택 능력치 약 +0.4'}let note=document.getElementById('v85-growth-note');if(!note){note=document.createElement('div');note.id='v85-growth-note';note.className='tiny';document.getElementById('trainingChoices')?.insertAdjacentElement('afterend',note)}if(note)note.textContent='훈련 1회: 선택 능력치 약 +0.4 (성장형 선수 최대 +1.0, 학년·잠재력에 따라 달라져) · 다른 고교 선수들도 해마다 성장해.';return result};
  // Jinmu: O Dae-il 79, Nam Gwang-il 77, other starters 65, bench 58.
  try{
    const jinmu=ensureTeam('진무고')||[],starterNames=new Set(['이원준','오대일','한석규','윤성한','남광일']);
@@ -8183,7 +8183,7 @@ function v129Breakout(){
         const big=(typeof v105IsBig==='function')&&v105IsBig(p);
         const add=amt=>{for(const k of V10_KEYS){if(k==='three'&&big)continue;p[k]=Math.min(150,(Number(p[k])||0)+amt)}};
         if(Number(p.v129Next)>0){add(p.v129Next);p.v129Next=0}
-        else if(Math.random()<.01){
+        else if(v138Visible(team)&&Math.random()<.01){
           const amt=Math.round((5+Math.random()*3)*10)/10;
           add(amt);p.v129Next=Math.round(amt/2*10)/10;p.v129Brk=(Number(p.v129Brk)||0)+1;
           const line=`${p.name}(${team})의 잠재능력이 개화했다! OVR ${Math.round(avgStat(p))}`;
@@ -8439,12 +8439,14 @@ setInterval(v131Run,2500);
   },700);
 })();
 
+
 /* V133: 능력치 '리바운드'를 '점프력'(리바운드·블락)으로, 파울 확률을 수비와 강하게 연결 */
 v14FoulChance=function(p,team,g){
   const def=Number(p.def??60),physical=Number(p.physical??60),condition=Number(p.condition??85),core=pos_core(p.pos||'SF');
   const recent=(g?.tactics||[]).slice(-2).some(x=>x.id==='press')?0.01:0;
   return v14Clamp(.12+v14Clamp((75-def)*.0018,-.05,.075)+v14Clamp((60-physical)*.00035,-.01,.015)+((core==='C'||core==='PF')?0.015:0)+(condition<45?0.02:0)+recent,.05,.24);
 };
+
 /* V136: 저장 슬롯 5개(IndexedDB, 불가 시 localStorage) + 파일 내보내기/가져오기 + 새 시즌 전 자동백업 */
 (function(){
   const DBN='slam_slots_v1',ST='slots',IDS=['s1','s2','s3','s4','s5'],LEG=SAVEKEY+'_prev';
@@ -8579,6 +8581,7 @@ v14FoulChance=function(p,team,g){
     if(t?.closest?.('#saveNow')){e.preventDefault();e.stopImmediatePropagation();openUI('save')}
   },true);
 })();
+
 /* V137: 역배 '팀워크 개화'(+3 OVR, 대회당 팀당 1회) · 파이널4/결승 복귀 · 중계 화면 맨 위로 */
 function v137StageFor(phase){
   const base=({local:'local',league:'league',national:'national',winterLocal:'winterLocal',winterFinal:'winterFinal',winterNational:'winterNational'})[phase];
@@ -8707,6 +8710,71 @@ function v137GrowthModal(mine,news){
   d.innerHTML='<div style="background:#16181d;color:#fff;border:1px solid #66d3a0;border-radius:16px;max-width:400px;width:100%;max-height:85vh;overflow:auto;padding:20px;text-align:center"><div style="font-size:30px">🌟</div><div style="color:#66d3a0;font-size:12px;letter-spacing:.12em;margin:4px 0 8px">POTENTIAL BLOOM</div><h3 style="margin:0 0 6px">잠재능력 개화!</h3><p style="margin:0 0 12px;opacity:.8;font-size:13px">한 해의 노력 끝에 숨어 있던 재능이 눈을 떴어.</p><div style="text-align:left;line-height:1.6;margin:0 0 14px">'+lines.map(l=>`<div>${l.m?'⭐ ':'· '}${esc(l.t)}${l.m?' <span style="color:#66d3a0">(우리 팀)</span>':''}</div>`).join('')+'</div><button type="button" class="btn gold" id="v137GrowOk">확인</button></div>';
   document.body.appendChild(d);d.querySelector('#v137GrowOk').onclick=()=>d.remove();
 }
+
+/* V138: 필러 학교의 원작 이름 충돌 제거 + 선수카드 급성장 표시 */
+const V138_HOME=(()=>{const m={};try{for(const t of Object.keys(RAW.canon||{}))for(const p of (RAW.canon[t].players||[]))(m[p.name]=m[p.name]||[]).push(t)}catch(_){}return m})();
+const V138_SUR=['한','오','류','백','민','도','서','방','탁','마','고','현','염','구','나','제'],V138_GIV=['지후','도윤','시우','건우','현준','유찬','태민','재윤','승호','진혁','동현','성빈','준석','해강','다온','우진'];
+const V138_KEYS=['shoot','three','pass','def','spd','physical','reb'];
+function v138Mean(p){let s=0,n=0;for(const k of V138_KEYS){const v=Number(p[k]);if(v>0){s+=v;n++}}return n?s/n:0}
+function v138NewName(used){for(let i=0;i<400;i++){const n=V138_SUR[Math.floor(Math.random()*V138_SUR.length)]+V138_GIV[Math.floor(Math.random()*V138_GIV.length)];if(!used.has(n))return n}return '선수'+Math.floor(Math.random()*9000+1000)}
+function v138Sweep(){
+  let changed=false;
+  try{
+    const teams=S&&S.teams;if(!teams)return false;
+    const used=new Set(Object.keys(V138_HOME));for(const r of Object.values(teams))for(const p of r||[])used.add(p.name);
+    for(const [t,roster] of Object.entries(teams)){
+      if(!Array.isArray(roster))continue;
+      for(const p of roster){
+        if(!p||p.v138ren)continue;
+        const homes=V138_HOME[p.name];if(!homes)continue;
+        const tc=(typeof v56CanonicalTeam==='function'?v56CanonicalTeam(t):t);
+        if(homes.includes(t)||homes.includes(tc))continue;
+        // 원래 소속팀에 아직 그 이름이 있어야 '복제'로 본다(트레이드 이동은 건드리지 않음)
+        const hold=homes.some(h=>{const r=teams[h];return !r||r.some(x=>x&&x.name===p.name)});
+        if(!hold)continue;
+        const old=p.name,nn=v138NewName(used);used.add(nn);
+        const others=roster.filter(x=>x&&x!==p&&!V138_HOME[x.name]).map(v138Mean).filter(v=>v>0);
+        const tgt=others.length?others.reduce((a,b)=>a+b,0)/others.length:0,cur=v138Mean(p);
+        if(tgt&&cur>tgt+4){const f=(tgt+2)/cur;for(const k of Object.keys(p)){if(V138_KEYS.concat(['dunk','handle','jump']).includes(k)&&Number(p[k])>0)p[k]=Math.round(p[k]*f*10)/10}}
+        p.name=nn;p.v138ren=old;
+        for(const key of Object.keys(S.active||{})){if(key===t&&Array.isArray(S.active[key]))S.active[key]=S.active[key].map(n=>n===old?nn:n)}
+                changed=true;
+      }
+    }
+  }catch(e){console.warn('v138 sweep',e)}
+  return changed;
+}
+const v138BaseEnsure=ensureTeam;
+ensureTeam=function(team,...a){const r=v138BaseEnsure.apply(this,[team,...a]);try{v138Sweep()}catch(_){}return r};
+setInterval(()=>{try{if(v138Sweep()&&typeof persist==='function')persist()}catch(_){}},4000);
+const v138BasePlayers=renderPlayers;
+renderPlayers=function(...a){
+  const r=v138BasePlayers.apply(this,a);
+  try{
+    const ros=ensureTeam(S.school)||[];
+    document.querySelectorAll('#playerGrid .player').forEach(card=>{
+      if(card.dataset.v138)return;
+      const nameEl=card.querySelector('.pname');if(!nameEl)return;
+      const p=ros.find(x=>x.name===nameEl.textContent.trim());if(!p)return;
+      card.dataset.v138='1';
+      const n=Number(p.v129Brk)||0;if(n<=0)return;
+      const b=document.createElement('span');b.className='badge';b.style.cssText='background:#ffd54a;color:#3b2a00;border-color:#ffd54a;font-weight:800';
+      b.textContent='🌟 잠재능력 개화'+(n>1?' ×'+n:'');nameEl.after(b);
+    });
+  }catch(e){console.warn('v138 cards',e)}
+  return r;
+};
+
+function v138Visible(team){
+  try{
+    if(team===S.school)return true;
+    const set=new Set([...Object.keys(RAW.canon||{}),...Object.keys(RAW.custom||{}),...((S.local&&S.local.blocks)||[]).flatMap(b=>b.teams||[]),...((S.national&&S.national.teams)||[])]);
+    if(set.has(team))return true;
+    const d=typeof v11Display==='function'?v11Display(team):team;
+    return set.has(d)||(typeof v56CanonicalTeam==='function'&&set.has(v56CanonicalTeam(team)));
+  }catch(_){return true}
+}
+
 /* V128: 12월 U19 월드컵 단계에서 저장을 불러오면 대표팀 화면으로 갈 길이 없던 문제 — 전용 탭과 '대회 다음 경기' 연결 */
 function v128Sync(){
   try{
