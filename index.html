@@ -1536,7 +1536,7 @@ const V17_OVR_TARGETS={
 	function v17EnsureTen(team,roster){
 		 if(!Array.isArray(roster))return roster;const t=v17CanonicalTeam(team),candidates=v17Candidates(t),namedSet=new Set(candidates.slice(0,10).map(p=>p.name)),activeNames=new Set((V17_LINEUPS[t]||(S?.active?.[team]||S?.active?.[t]||[])).map(x=>typeof x==='string'?x:x?.name).filter(Boolean));
 	 for(const src of candidates.slice(0,10))if(!v17NameExists(roster,src.name)){
-	  if(roster.length>=10){let ix=-1;for(let i=roster.length-1;i>=0;i--){const p=roster[i];if(!namedSet.has(p.name)&&!activeNames.has(p.name)&&!V17_LINEUPS[t]?.includes(p.name)){ix=i;break}}if(ix<0)continue;roster.splice(ix,1)}
+	  if(roster.length>=10){let ix=-1;for(let i=roster.length-1;i>=0;i--){const p=roster[i];if(!namedSet.has(p.name)&&!activeNames.has(p.name)&&!V17_LINEUPS[t]?.includes(p.name)&&!(t==='해남대부속고'&&p.name==='홍익현')){ix=i;break}}if(ix<0)continue;roster.splice(ix,1)}
 	  roster.push(v17MakeFromNamed(t,src,roster));
 	 }
 	 while(roster.length>10){let ix=-1;for(let i=roster.length-1;i>=0;i--)if(!activeNames.has(roster[i].name)&&!V17_LINEUPS[t]?.includes(roster[i].name)){ix=i;break}if(ix<0)break;roster.splice(ix,1)}
@@ -4474,7 +4474,7 @@ if(!window.__SLAM_V66_TEAM_COPY_OVR_PHOTOS__){
     if(!Array.isArray(roster))return false;
     let changed=false;
     for(const p of roster){
-      if(!p||p.name!=='오경민'||p.v71OkgyeongminOvrFix===1)continue;
+      if(true||!p||p.name!=='오경민'||p.v71OkgyeongminOvrFix===1)continue;
       const current=Number(avgStat(p));
       const hasLegacy80Lock=p.v17OvrBalanced===1&&Number(p.v48OvrTargetVersion)===3&&Number(p.v48OvrTarget)===80;
       const legacyInflation=hasLegacy80Lock&&current>=84&&Number(p.year||1)<=3;
@@ -8137,7 +8137,7 @@ function v129Run(){
       try{
         const get=()=>Number(avgStat(p))||0,cur=get();
         if(p.v129Tgt==null){p.v129Tgt=Math.round((cur-2)*10)/10}
-        else if(!(cur>p.v129Tgt+.6&&cur<p.v129Tgt+3.5&&v129Runs<=25))continue;
+        else if(!(v129Runs<=25&&(()=>{const c=v10Career();return c.year===1&&c.month<=2&&!Number(c.week)})()&&cur>p.v129Tgt+.6&&cur<p.v129Tgt+3.5))continue;
         let g=0;
         while(Math.abs(get()-p.v129Tgt)>.2&&g++<3000){
           const dir=get()<p.v129Tgt?1:-1;
@@ -8312,7 +8312,7 @@ setInterval(v131Run,2500);
     return baseBestStyle.apply(this,arguments);
   };
   /* 4) 선수별 최종 OVR (화면 OVR 기준) — 70% 이상 보유 선수는 고정표가 덮어써도 다시 맞춤 */
-  const TARGET={'마이클장':107,'정우성':102,'신현철':100,'이정환':99,'강석훈':99,'이명헌':99,'마성지':99,'김수겸':96,'윤대협':96,'김판석':94,'채치수':90,'남훈':90,'성현준':86,'변덕규':86,'송태섭':84,'정대만':86,'서태웅':91,'최동오':93,'신준섭':92.3,'허종수':85,'사진우':85,'양승규':72,'양영규':72,'노승태':89,'최영환':86,'우성민':89};
+  const TARGET={'마이클장':107,'정우성':102,'신현철':100,'이정환':99,'강석훈':99,'이명헌':99,'마성지':99,'김수겸':96,'윤대협':96,'김판석':94,'채치수':90,'남훈':90,'성현준':86,'변덕규':86,'송태섭':83,'정대만':86,'서태웅':90,'최동오':93,'신준섭':92.3,'허종수':85,'사진우':85,'양승규':72,'양영규':72,'노승태':89,'최영환':86,'우성민':89};
   const OLDW={PG:[1.3,.7],SG:[1.3,.7],G:[1.3,.7],SF:[1,1],F:[1,1],PF:[.7,1.3],C:[.4,1.6]};
   function oldW(p){const parts=String(p?.pos||'').toUpperCase().split('/').map(x=>x.trim()).filter(x=>OLDW[x]);if(!parts.length)return [1,1];let t=0,ph=0;for(const x of parts){t+=OLDW[x][0];ph+=OLDW[x][1]}return [t/parts.length,ph/parts.length]}
   const SHAPE={'김수겸':{set:{three:110},comp:['def','spd'],ovr:96},'장권혁':{set:{physical:85},comp:['def','spd'],ovr:81.7},'임택중':{set:{physical:88},comp:['def','spd'],ovr:80.3},'오창석':{set:{physical:88},comp:['def','spd'],ovr:79.3},'채치수':{set:{physical:105},comp:['shoot','pass'],ovr:90},'변덕규':{set:{physical:101},comp:['def'],ovr:86},'황태산':{set:{def:55,shoot:114,skill:105,three:70},comp:['physical'],ovr:85.4},'허종수':{set:{physical:45,shoot:95,pass:108},comp:['spd'],ovr:85},'사진우':{set:{def:110,spd:100,three:70},comp:['shoot'],ovr:85},'나대룡':{set:{three:93},comp:['shoot','reb','physical'],ovr:82},'백정태':{set:{shoot:72,three:60,pass:100},comp:['def'],ovr:79.4},'안영수':{set:{shoot:72,three:62,pass:98,spd:93},comp:['def'],ovr:79.4},'허태환':{set:{shoot:68,three:56,pass:92,spd:86},comp:['def'],ovr:79},'윤대협':{set:{spd:101,three:100,pass:101,shoot:101,physical:80},comp:['reb','def','skill'],ovr:96,pos:'SF/PG'}};
@@ -8356,7 +8356,7 @@ setInterval(v131Run,2500);
             setOvr(p,tgt);p.v132Tgt=tgt;p.v131Tgt=tgt;p.v132Done=1;snap(p);changed=true;
           }else if(p.v132Tgt!=null&&runs<=40){
             const cc0=p.condition;p.condition=100;let cur=0;try{cur=Number(avgStat(p))||0}finally{p.condition=cc0}
-            if(cur<p.v132Tgt+twinAdj(p)-.6&&cur>p.v132Tgt+twinAdj(p)-6){setOvr(p,p.v132Tgt);p.v131Tgt=p.v132Tgt;snap(p);changed=true}
+            {const cF=v10Career(),frs=cF.year===1&&cF.month<=2&&!Number(cF.week),tg=p.v132Tgt+twinAdj(p);if((cur<tg-.6&&cur>tg-6)||(frs&&cur>tg+.6&&cur<tg+6)){setOvr(p,p.v132Tgt);p.v131Tgt=p.v132Tgt;snap(p);changed=true}}
           }
         }
       }
@@ -8368,7 +8368,7 @@ setInterval(v131Run,2500);
           const ok=()=>Object.entries(sh.set).every(([k,x])=>Math.abs((Number(p[k])||0)-x)<1.5);
           if(p.v134Done&&(runs>40||ok()))continue;
           if(p.v134Done&&Math.abs((Number(avgStat(p))||0)-sh.ovr)>6)continue;
-          if(p.v134Done){const c0=p.condition;p.condition=100;let cu=0;try{cu=Number(avgStat(p))||0}finally{p.condition=c0}if(cu>sh.ovr+.6)continue}
+          if(p.v134Done){const c0=p.condition;p.condition=100;let cu=0;try{cu=Number(avgStat(p))||0}finally{p.condition=c0}{const cF=v10Career();if(cu>sh.ovr+.6&&!(cF.year===1&&cF.month<=2&&!Number(cF.week)))continue}}
           const cond=p.condition;p.condition=100;
           try{
             setOvr(p,sh.ovr);
@@ -8774,6 +8774,18 @@ function v138Visible(team){
     return set.has(d)||(typeof v56CanonicalTeam==='function'&&set.has(v56CanonicalTeam(team)));
   }catch(_){return true}
 }
+const v138BaseTraining=renderTraining;
+renderTraining=function(...a){
+  const r=v138BaseTraining.apply(this,a);
+  try{
+    const rb=document.querySelector('#trainingChoices .trainbtn[data-v10-train="rest"]');
+    if(rb){const t=rb.querySelector('.tiny');if(t)t.textContent='컨디션 전원 100 회복'}
+    const n1=document.getElementById('v492-growth-note'),n2=document.getElementById('v85-growth-note');
+    if(n1&&n2)n1.remove();
+  }catch(e){console.warn('v138 training',e)}
+  return r;
+};
+setInterval(()=>{try{const n1=document.getElementById('v492-growth-note'),n2=document.getElementById('v85-growth-note');if(n1&&n2)n1.remove();const rb=document.querySelector('#trainingChoices .trainbtn[data-v10-train="rest"] .tiny');if(rb&&rb.textContent!=='컨디션 전원 100 회복')rb.textContent='컨디션 전원 100 회복'}catch(_){}},400);
 
 /* V128: 12월 U19 월드컵 단계에서 저장을 불러오면 대표팀 화면으로 갈 길이 없던 문제 — 전용 탭과 '대회 다음 경기' 연결 */
 function v128Sync(){
