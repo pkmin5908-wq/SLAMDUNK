@@ -3320,6 +3320,13 @@ function v49BuildPhotoMap(){
   const result={byHash,byPhoto,ready};if(ready)v49BuildPhotoMap.cache=result;return result;
 }
 function v49PersistState(){
+  /* V141: 로드/시작 직후 38번씩 몰리던 전체 저장을 한 번으로 모은다(종료·백그라운드 전환 시 즉시 저장) */
+  {const q=window.__v49q||(window.__v49q={t:0,run:false});
+   if(!q.run&&!window.__SLAM_NO_FLUSH&&S&&S.school){
+    if(q.t)return true;
+    q.t=setTimeout(()=>{q.t=0;q.run=true;try{v49PersistState()}catch(e){console.warn('persist',e)}finally{q.run=false}},350);
+    return true;
+   }}
   const maps=v49BuildPhotoMap(),copy=JSON.parse(JSON.stringify(S));
   const compact=node=>{
     if(Array.isArray(node)){for(let i=0;i<node.length;i++){const v=node[i];if(typeof v==='string'){const ref=maps.byPhoto.get(v);if(ref)node[i]=ref}else if(v&&typeof v==='object')compact(v)}return}
@@ -4737,6 +4744,9 @@ function v77BoardSkill(p){return Math.max(1,(Number(p?.reb)||60)*1.0+(Number(p?.
 /* FIX: weight rises faster than linearly with the rebound rating, and guards get a clearly lower positional factor,
    so a 120-reb forward like 강백호 really dominates the boards and an SG no longer out-rebounds a PF. */
 function v77BoardWeight(p){const f=({C:1.0,PF:.95,SF:.7,SG:.5,PG:.45}[v77Role(p)]||.7)*((S&&S.game&&S.game.v124Victim&&S.game.v124Victim[p?.name]===S.game.quarter)?.8:1);return Math.max(1,Math.pow(v77BoardSkill(p)/60,2.4)*f*60*(p?.name==='강백호'?.8:1)*((typeof V110_SIG!=='undefined'&&(V110_SIG[p?.name]||[]).some(x=>x[1]==='rebound'))?1.35:(p?.skillTag==='rebound'?1.15:1)))}
+/* V141: 한 선수가 한 경기에 리바운드를 독식하지 않도록, 이미 잡은 개수가 많을수록 다음 리바운드 가중치를 줄인다 */
+function v141RbDecay(team,p){const c=(S&&S.game&&S.game._v141rb&&S.game._v141rb[team+'|'+(p&&p.name)])||0;if(c<=2)return 1;const rb=Number(p&&p.reb)||70,r=Math.max(.6,Math.min(.7,.6+(rb-72)*.002));return Math.pow(r,c-2)}
+function v141RbCount(team,name){if(!S||!S.game)return;const m=S.game._v141rb||(S.game._v141rb={});const k=team+'|'+name;m[k]=(m[k]||0)+1}
 function v77AvgBoardSkill(line){return line.length?line.reduce((sum,p)=>sum+v77BoardSkill(p),0)/line.length:60}
 function v77FrontSkill(line){const front=line.filter(p=>['C','PF','SF'].includes(v77Role(p)));return v77AvgBoardSkill(front.length?front:line)}
 const v77BaseGenPlays=genPlays;
@@ -4757,12 +4767,13 @@ genPlays=function(team,points,quarter,...args){
   // plays, but reassign every rebound through the same matchup/position logic.
   const targetMisses=inside?6:5,misses=plays.filter(e=>String(e.kind||'').includes('불발'));
   // 득점이 큰 경기에서는 실패 슛이 많아 리바운드가 과하게 쌓였다 → 팀당 쿼터 리바운드(상대/자팀 포함)를 약 12개 수준으로 제한(나머지는 팀 리바운드)
-  const keepRb=Math.min(1,9/Math.max(1,targetMisses,misses.length));
+  const keepRb=Math.min(1,8/Math.max(1,targetMisses,misses.length));
   const addRebound=deltas=>{
     if(Math.random()>keepRb)return {name:offense[0].name};
     const reboundTeam=Math.random()<ownBoardRate?team:opponent;
     const reboundRoster=reboundTeam===team?offense:defense;
-    const rebounder=v8PickWeighted(reboundRoster,p=>v77BoardWeight(p));
+    const rebounder=v8PickWeighted(reboundRoster,p=>v77BoardWeight(p)*v141RbDecay(reboundTeam,p));
+    v141RbCount(reboundTeam,rebounder.name);
     deltas.push({team:reboundTeam,name:rebounder.name,delta:{rebounds:1}});
     return {name:rebounder.name,photo:rebounder.photo,_team:reboundTeam};
   };
@@ -4782,10 +4793,13 @@ v8SimBox=function(team,points,opponent,...args){
   const lineup=v8Lineup(team)||[];if(!lineup.length)return out;
   const rivals=opponent?(v8Lineup(opponent)||[]):[];
   const ownSkill=v77AvgBoardSkill(lineup),oppSkill=rivals.length?v77AvgBoardSkill(rivals):ownSkill;
-  const boardTotal=Math.max(22,Math.min(34,26+Math.round((ownSkill-oppSkill)*.06)));
+  const boardTotal=Math.max(19,Math.min(29,23+Math.round((ownSkill-oppSkill)*.06)));
   const weighted=lineup.map(p=>{const exact=boardTotal*v77BoardWeight(p)/lineup.reduce((sum,x)=>sum+v77BoardWeight(x),0);return {name:p.name,whole:Math.floor(exact),fraction:exact-Math.floor(exact)}});
   let remaining=boardTotal-weighted.reduce((sum,x)=>sum+x.whole,0);
   weighted.slice().sort((a,b)=>b.fraction-a.fraction).slice(0,remaining).forEach(x=>x.whole++);
+  /* V141: 점프력(reb)이 높은 선수만 10개 이상 허용(기본 9개, 점프력 80 초과 6마다 +1), 넘친 개수는 가장 적게 잡은 선수에게 */
+  const v141Cap=r=>{const pl=lineup.find(x=>x.name===r.name);const rb=Number(pl&&pl.reb)||70;return 9+Math.max(0,Math.floor((rb-80)/6))};
+  for(let guard=0;guard<40;guard++){const hi=weighted.slice().sort((a,b)=>(b.whole-v141Cap(b))-(a.whole-v141Cap(a)))[0],lo=weighted.slice().sort((a,b)=>a.whole-b.whole)[0];if(!hi||hi.whole<=v141Cap(hi)||hi===lo)break;hi.whole--;lo.whole++}
   for(const row of weighted)if(out[row.name])out[row.name].rebounds=row.whole;
   return out;
 };
@@ -9175,6 +9189,7 @@ function v140Build(team){
  S.active=S.active||{};S.active[team]=startNames.slice();
  S.v8RosterDone=S.v8RosterDone||{};S.v8RosterDone[team]=true;
  try{v57ApplyRosterPhotos(team,roster)}catch(_){}
+ try{const yrs=Math.max(0,(v10Career().year||1)-1);for(let y=0;y<yrs;y++)for(const p of roster){const G=1.7*Math.max(.5,Math.min(2,Number(p.growthRate)||1.1))*v107Curve(p);for(const k of V10_KEYS)p[k]=Math.min(150,(Number(p[k])||0)+G)}}catch(_){}
  return roster;
 }
 try{for(const t of Object.keys(V140_GT))if(!V10_PROTECTED_TEAMS.includes(t))V10_PROTECTED_TEAMS.push(t)}catch(_){}
@@ -9198,9 +9213,78 @@ function v140Swap(n,limit){
  return n;
 }
 const v140BaseNational=buildNational;
-buildNational=function(){return v140Swap(v140BaseNational.apply(this,arguments),10)};
+buildNational=function(){v140EnsureAll();return v140Swap(v140BaseNational.apply(this,arguments),10)};
 const v140BaseWinterNational=buildWinterNational;
 buildWinterNational=function(){return v140Swap(v140BaseWinterNational.apply(this,arguments),6)};
+
+/* 학교 탐색·전학 제안 목록에 가비지타임 학교가 보이도록 하고, 1년차부터 다른 학교처럼 성장하도록 미리 생성 */
+function v140EnsureAll(){try{if(!S||!S.teams)return;for(const t of Object.keys(V140_GT))if(!S.teams[t])ensureTeam(t)}catch(_){}}
+const v140BaseAllSchools=v10AllSchools;
+v10AllSchools=function(){v140EnsureAll();const r=v140BaseAllSchools.apply(this,arguments);for(const t of Object.keys(V140_GT))if(!r.includes(t))r.push(t);return r};
+const v140BaseGrowth=v137AiGrowth;
+v137AiGrowth=function(){v140EnsureAll();return v140BaseGrowth.apply(this,arguments)};
+
+/* ===== V141: ① 인터하이에 가나가와 팀이 3팀 이상 나오는 문제 수정 ② 시작 직후 저장 폭주(약 38회)로 로고 화면이 길던 문제 완화 ===== */
+function v141FixKanagawa(n,qualifiers){
+ try{
+  const q=(qualifiers||[]).filter(Boolean),q0=q[0],q1=q[1];
+  if(!n||!Array.isArray(n.blockRoster)||n.blockRoster.length!==4||!q0)return n;
+  const isK=t=>{try{return !!v18IsKanagawa(t)}catch(_){return false}};
+  const allowed=new Set([q0,q1].filter(Boolean));
+  const blocks=n.blockRoster.map(b=>b.slice());
+  const inBlocks=t=>blocks.findIndex(b=>b.includes(t));
+  const pool=()=>{const have=new Set(blocks.flat());return v8UniquePool(q).filter(t=>!have.has(t)&&!isK(t)&&t!==S.school)};
+  const swapIn=(bi,idx,t)=>{ /* blocks[bi][idx] 자리에 t를 넣고, t가 있던 자리에는 원래 팀을 넣는다 */
+   const cur=inBlocks(t);const old=blocks[bi][idx];
+   if(cur>=0){const ci=blocks[cur].indexOf(t);blocks[cur][ci]=old}
+   blocks[bi][idx]=t;
+  };
+  const half=bi=>(bi===0||bi===3)?0:1;
+  let changed=false;
+  // 1) 시드 자리의 비출전 가나가와 팀 → 가나가와 1위(→2위) 팀이 그 시드 블록으로
+  const need=[q0,q1].filter(t=>t&&!blocks.some(b=>b[0]===t));
+  for(let bi=0;bi<4;bi++){
+   const s=blocks[bi][0];
+   if(isK(s)&&!allowed.has(s)){
+    changed=true;
+    let pick=-1;
+    for(let j=0;j<need.length;j++){const o=[q0,q1].find(x=>x&&x!==need[j]);const oi=o?blocks.findIndex(b=>b[0]===o):-1;if(oi<0||half(oi)!==half(bi)){pick=j;break}}
+    if(pick>=0){swapIn(bi,0,need.splice(pick,1)[0])}
+    else{const c=pool()[0];if(c)blocks[bi][0]=c}
+   }
+  }
+  // 2) 남은 비출전 가나가와 팀(교체돼 밀려난 팀 포함)은 가나가와가 아닌 팀으로 교체
+  for(let bi=0;bi<4;bi++)for(let i=0;i<blocks[bi].length;i++){
+   const t=blocks[bi][i];
+   if(isK(t)&&!allowed.has(t)){changed=true;const c=pool()[0];if(c)blocks[bi][i]=c}
+  }
+  // 3) 가나가와 두 팀은 서로 다른 반쪽(1·4시드 / 2·3시드)에 → 결승에서만 만남. 둘 다 시드면 그대로.
+  if(q0&&q1&&q0!==q1){
+   const a=inBlocks(q0),b=inBlocks(q1);
+   if(a>=0&&b>=0&&half(a)===half(b)){
+    const mv=(blocks[b][0]!==q1)?q1:((blocks[a][0]!==q0)?q0:null);
+    if(mv){
+     const from=inBlocks(mv),other=mv===q1?a:b;
+     const targets=[0,1,2,3].filter(x=>half(x)!==half(other));
+     const bi=targets[Math.floor(Math.random()*targets.length)];
+     const slots=blocks[bi].map((x,i)=>i).filter(i=>i>0&&!allowed.has(blocks[bi][i]));
+     if(slots.length){const k=slots[Math.floor(Math.random()*slots.length)];const ci=blocks[from].indexOf(mv);const tmp=blocks[bi][k];blocks[bi][k]=mv;blocks[from][ci]=tmp;changed=true}
+    }
+   }
+  }
+  if(!changed&&blocks.every((b,i)=>b.join('|')===n.blockRoster[i].join('|')))return n;
+  const games=[];blocks.forEach((arr,bi)=>{for(let i=1;i<arr.length;i+=2)if(arr[i+1])games.push({a:arr[i],b:arr[i+1],round:'60강 1회전',block:bi,done:false,score:'',winner:''})});
+  return Object.assign(n,{teams:[...new Set(blocks.flat())],seeds:blocks.map(b=>b[0]),blockRoster:blocks,blockTeams:blocks.map(x=>x.slice()),games});
+ }catch(e){console.warn('v141 kanagawa',e);return n}
+}
+const v141BaseNF=v8NationalFromTeams;
+v8NationalFromTeams=function(qualifiers,rawTeams){return v141FixKanagawa(v141BaseNF.apply(this,arguments),qualifiers)};
+
+/* 저장 폭주 완화(본체는 v49PersistState 맨 앞): 종료·백그라운드 전환·저장 버튼에서는 대기 중인 저장을 즉시 실행 */
+function v141Flush(){const q=window.__v49q;if(!q||!q.t)return;clearTimeout(q.t);q.t=0;q.run=true;try{if(S&&S.school)v49PersistState()}catch(e){console.warn('persist flush',e)}finally{q.run=false}}
+window.addEventListener('pagehide',v141Flush);window.addEventListener('beforeunload',v141Flush);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')v141Flush()});
+document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#saveNow'))setTimeout(v141Flush,60)},false);
 
 /* V128: 12월 U19 월드컵 단계에서 저장을 불러오면 대표팀 화면으로 갈 길이 없던 문제 — 전용 탭과 '대회 다음 경기' 연결 */
 function v128Sync(){
