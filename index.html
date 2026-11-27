@@ -6114,8 +6114,10 @@ function v91RegenRemaining(g,cursor,dOvr,fOverride){
     }
     const all=[...grouped.values()].filter(x=>x&&x.games>0).map(x=>({...x,score:v8StatScore(x)})).sort((a,b)=>v129Key(b)-v129Key(a));
     const tg={};for(const x of all)tg[x.team]=Math.max(tg[x.team]||0,x.games);
-    const q=all.filter(x=>x.games>=Math.ceil(tg[x.team]*.75));
-    return q.length>=5?q:all;
+    /* V142: 팀 경기수의 75% 이상 + 대회 전체 최다 경기수의 70% 이상(5명 미만이면 50%→0%로 완화)(1~2경기만 뛴 팀 선수가 베스트5에 오르는 문제 방지) */
+    const tmax=Math.max(0,...Object.values(tg));
+    for(const f of [.7,.5,0]){const fl=Math.ceil(tmax*f),q=all.filter(x=>x.games>=Math.max(Math.ceil(tg[x.team]*.75),fl));if(q.length>=5)return q}
+    return all;
   }
   const v91Player=p=>ensureTeam(p.team).find(z=>z.name===p.name)||p;
   const pg=(p,k)=>(Number(p[k])||0)/Math.max(1,Number(p.games)||1);
@@ -6152,7 +6154,7 @@ function v91RegenRemaining(g,cursor,dOvr,fOverride){
     const rows=v91Rows(stage);
     if(!rows.length)return null;
     const label=stage==='national'?'인터하이 전국대회':stage==='league'?'가나가와 최종예선':stage==='winterRegional'?'겨울선발전 가나가와 예선':'겨울선발전 전국대회';
-    const qual=rows;
+    const qual=rows,minG=Math.max(1,Math.min(...rows.map(r=>Number(r.games)||0)));
     const king=(k,title,unit)=>{const p=qual.slice().sort((a,b)=>pg(b,k)-pg(a,k))[0];return p?`<div class="v91-king"><div class="eyebrow">${title}</div>${v91Card(p,title,`경기당 ${pg(p,k).toFixed(1)}${unit}`)}</div>`:''};
     const [first,second,third]=v91Teams(rows,champion);
     const teamPage=(title,list,rankLabel)=>`<div class="award"><div class="eyebrow">${label} · ALL TOURNAMENT TEAM</div><h3>${title}</h3><div class="honor-grid">${list.map((p,i)=>v91Card(p,`${rankLabel} ${i+1}`)).join('')||'<div class="tiny">선정된 선수가 없어.</div>'}</div></div>`;
