@@ -6098,10 +6098,10 @@ function v91RegenRemaining(g,cursor,dOvr,fOverride){
   const V91_LOCAL=new Set(['league','winterRegional']);
   let pageKey='',page=0;
   const V91_PAGES=5;
-  function v91Rows(stage){
-    /* V139: 시상 집계 — 예선부터 본선까지 합산, 자기 팀 경기수의 75% 이상 출전한 선수만 시상 대상(교체 출전도 출전으로 침) */
+  function v91Rows(stage,minCount){
+    /* V139: 시상 집계 — 최종예선(league)만 가나가와 예선+풀리그를 합산하고 인터하이·겨울선발전은 해당 대회 경기만 집계, 자기 팀 경기수의 75% 이상 출전한 선수만 시상 대상(교체 출전도 출전으로 침) */
     const ps=S.performanceStats||{};
-    const SRC={league:['local','league'],national:['local','league','national'],winterRegional:['winterRegional'],winterNational:['winterRegional','winterNational']}[stage]||[stage];
+    const SRC={league:['local','league'],national:['national'],winterRegional:['winterRegional'],winterNational:['winterNational']}[stage]||[stage];
     const totals=['games','points','rebounds','assists','steals','blocks','turnovers','fga','fgm','threepa','threepm','passAttempts','passMade','minutes','wins'];
     const last=Object.values(ps[SRC[SRC.length-1]]||{}),allowed=SRC.length>1?new Set(last.map(r=>r&&r.team).filter(Boolean)):null;
     const grouped=new Map();
@@ -6116,7 +6116,7 @@ function v91RegenRemaining(g,cursor,dOvr,fOverride){
     const tg={};for(const x of all)tg[x.team]=Math.max(tg[x.team]||0,x.games);
     /* V142: 팀 경기수의 75% 이상 + 대회 전체 최다 경기수의 70% 이상(5명 미만이면 50%→0%로 완화)(1~2경기만 뛴 팀 선수가 베스트5에 오르는 문제 방지) */
     const tmax=Math.max(0,...Object.values(tg));
-    for(const f of [.7,.5,0]){const fl=Math.ceil(tmax*f),q=all.filter(x=>x.games>=Math.max(Math.ceil(tg[x.team]*.75),fl));if(q.length>=5)return q}
+    for(const f of [.7,.5,0]){const fl=Math.ceil(tmax*f),q=all.filter(x=>x.games>=Math.max(Math.ceil(tg[x.team]*.75),fl));if(q.length>=(minCount||5))return q}
     return all;
   }
   const v91Player=p=>ensureTeam(p.team).find(z=>z.name===p.name)||p;
@@ -6156,7 +6156,7 @@ function v91RegenRemaining(g,cursor,dOvr,fOverride){
     const label=stage==='national'?'인터하이 전국대회':stage==='league'?'가나가와 최종예선':stage==='winterRegional'?'겨울선발전 가나가와 예선':'겨울선발전 전국대회';
     const qual=rows,minG=Math.max(1,Math.min(...rows.map(r=>Number(r.games)||0)));
     const king=(k,title,unit)=>{const p=qual.slice().sort((a,b)=>pg(b,k)-pg(a,k))[0];return p?`<div class="v91-king"><div class="eyebrow">${title}</div>${v91Card(p,title,`경기당 ${pg(p,k).toFixed(1)}${unit}`)}</div>`:''};
-    const [first,second,third]=v91Teams(rows,champion);
+    const [first,second,third]=v91Teams(v91Rows(stage,15),champion);
     const teamPage=(title,list,rankLabel)=>`<div class="award"><div class="eyebrow">${label} · ALL TOURNAMENT TEAM</div><h3>${title}</h3><div class="honor-grid">${list.map((p,i)=>v91Card(p,`${rankLabel} ${i+1}`)).join('')||'<div class="tiny">선정된 선수가 없어.</div>'}</div></div>`;
     const rookies=rows.filter(r=>Number(v91Player(r).year)===1);
     const rookie=rookies[0];
@@ -6178,7 +6178,7 @@ function v91RegenRemaining(g,cursor,dOvr,fOverride){
     const qual=rows;
     const out=[],add=(p,t)=>{if(p)out.push({player:p.name,team:p.team,title:base+' '+t})};
     for(const [k,t] of [['points','득점왕'],['assists','어시스트왕'],['rebounds','리바운드왕'],['blocks','블록왕'],['steals','스틸왕']])add(qual.slice().sort((x,y)=>pg(y,k)-pg(x,k))[0],t);
-    const [first,second,third]=v91Teams(rows,champion);
+    const [first,second,third]=v91Teams(v91Rows(stage,15),champion);
     first.forEach(p=>add(p,'퍼스트팀'));second.forEach(p=>add(p,'세컨드팀'));third.forEach(p=>add(p,'서드팀'));
     const dscore=p=>(pg(p,'steals')*2.2+pg(p,'blocks')*2.2+pg(p,'rebounds')*.6)+(Number(v91Player(p).def)||0)*.03;
     add(qual.slice().sort((x,y)=>dscore(y)-dscore(x))[0],'수비왕');
