@@ -6115,7 +6115,8 @@ function v91RegenRemaining(g,cursor,dOvr,fOverride){
     const all=[...grouped.values()].filter(x=>x&&x.games>0).map(x=>({...x,score:v8StatScore(x)})).sort((a,b)=>v129Key(b)-v129Key(a));
     const tg={};for(const x of all)tg[x.team]=Math.max(tg[x.team]||0,x.games);
     /* V142: 팀 경기수의 75% 이상 + 대회 전체 최다 경기수의 70% 이상(5명 미만이면 50%→0%로 완화)(1~2경기만 뛴 팀 선수가 베스트5에 오르는 문제 방지) */
-    const tmax=Math.max(0,...Object.values(tg));
+    /* V145: 대회 구조상 최다 경기수(인터하이 6경기, 최종예선 예선+풀리그 7경기)를 기준으로 삼아 시드팀 우승으로 기준이 낮아지지 않게 함 → 70% = 5경기 */
+    const tmax=Math.max({national:6,league:7,winterNational:5}[stage]||0,...Object.values(tg));
     for(const f of [.7,.5,0]){const fl=Math.ceil(tmax*f),q=all.filter(x=>x.games>=Math.max(Math.ceil(tg[x.team]*.75),fl));if(q.length>=(minCount||5))return q}
     return all;
   }
